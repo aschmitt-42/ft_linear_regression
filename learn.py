@@ -1,5 +1,6 @@
 import csv
 import json
+import sys
 import matplotlib.pyplot as plt
 
 def load_data(filename):
@@ -20,6 +21,9 @@ def load_data(filename):
     except Exception as e:
         print(f"Probleme avec le csv : {e}")
         exit(1)
+    if len(kms) == 0 or len(prices) == 0:
+        print("Erreur : le fichier ne contient pas de données valides.")
+        exit(1)
     return kms, prices
 
 def normalize(data):
@@ -29,7 +33,7 @@ def normalize(data):
         return [0.0 for _ in data], mini, maxi
     return [(x - mini) / (maxi - mini) for x in data], mini, maxi
 
-def train(kms, prices, learning_rate=0.01, iterations=1000000):
+def train(kms, prices, learning_rate=0.01, iterations=100000):
     theta0 = 0.0
     theta1 = 0.0
     m = len(kms)
@@ -53,7 +57,6 @@ def denormalize_thetas(theta0, theta1, km_min, km_max, price_min, price_max):
 ################################################ BONUS ################################################
 
 def graphique(kms, prices, km_min, km_max, theta0, theta1, graphique):
-    # plt.clear()
     plt.title("Prix d'une voiture en fonction du kilométrage")
     plt.xlabel("Kilométrage (km)")
     plt.ylabel("Prix (euros)")
@@ -71,7 +74,6 @@ def graphique(kms, prices, km_min, km_max, theta0, theta1, graphique):
         estimation = theta0 + theta1 * kms[i]
         plt.plot([kms[i], kms[i]], [prices[i], estimation], color="red", linestyle="dashed", linewidth=0.8, alpha=0.6)
 
-    # plt.show()
     plt.savefig(graphique)
 
 
@@ -84,6 +86,9 @@ def r2_score(kms, prices, theta0, theta1):
     for i in range(len(prices)):
         res += (prices[i] - (theta0 + theta1 * kms[i])) **2  # erreurs du modèle
         total += (prices[i] - mean_price) **2                # erreurs par rapport à la moyenne
+    if (total == 0):
+        print("Tous les prix sont identiques, le R² est indéfini.")
+        return
     r2 = 1 - (res / total)
     print(f"Précision du modèle (R²) : {r2:.4f}")
 
@@ -91,13 +96,15 @@ def r2_score(kms, prices, theta0, theta1):
 #######################################################################################################
 
 def main():
+    bonus = "-bonus" in sys.argv
+
     kms, prices = load_data("data.csv")
     kms_norm, km_min, km_max = normalize(kms)
     prices_norm, price_min, price_max = normalize(prices)
 
     theta0, theta1 = train(kms_norm, prices_norm)
     theta0, theta1 = denormalize_thetas(theta0, theta1, km_min, km_max, price_min, price_max)
-    print(f"Entraînement terminé. theta0={theta0:.2f}, theta1={theta1:.2f}")
+    print(f"Entraînement terminé. theta0 = {theta0:.2f}, theta1 = {theta1:.2f}")
 
     try:
         with open("thetas.json", "w") as f:
@@ -106,8 +113,9 @@ def main():
         print(f"Probleme avec le thetas.json : {e}")
         exit(1)
 
-    graphique(kms, prices, km_min, km_max, theta0, theta1, "graphique")
-    r2_score(kms, prices, theta0, theta1)
+    if bonus:
+        graphique(kms, prices, km_min, km_max, theta0, theta1, "graphique")
+        r2_score(kms, prices, theta0, theta1)
 
 if __name__ == "__main__":
     main()
